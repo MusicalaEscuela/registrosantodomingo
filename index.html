@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisión de Planeaciones</title>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #F4F4F4;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .header {
+            background: #3949AB;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .logo {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 100px;
+            height: auto;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: space-between;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .filter-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        select, input[type="date"] {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #CCC;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #CCC;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #3949AB;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #F9F9F9;
+        }
+
+        tr:hover {
+            background: #DCE775;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 id="titulo">Cargando...</h1>
+            <p id="subtitulo">Espere un momento...</p>
+        </div>
+        <img class="logo" src="https://static.wixstatic.com/media/85afce_3adb3865c88a492b93a8bf2dc69049c3~mv2.png" alt="Logo Musicala">
+    </div>
+
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label for="docenteFilter">Docente:</label>
+                <select id="docenteFilter">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="componenteFilter">Componente:</label>
+                <select id="componenteFilter">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="cicloFilter">Ciclo:</label>
+                <select id="cicloFilter">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="fechaFilter">Fecha:</label>
+                <input type="date" id="fechaFilter">
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Docente</th>
+                    <th>Componente</th>
+                    <th>Ciclo</th>
+                    <th>Corporal</th>
+                    <th>Técnico</th>
+                    <th>Teórico</th>
+                    <th>Obras</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const urlTSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdXU5llZQ9obSPP6bEgm7MwXTHYdsSKEXHslISzPdGcft2xq0YJFjrNCc3RHBWiMQUtaalcC0TNzrf/pub?gid=2015430019&single=true&output=tsvhttps://docs.google.com/spreadsheets/d/e/2PACX-1vQdXU5llZQ9obSPP6bEgm7MwXTHYdsSKEXHslISzPdGcft2xq0YJFjrNCc3RHBWiMQUtaalcC0TNzrf/pub?gid=172424139&single=true&output=tsv";
+        let clases = [];
+
+        async function cargarTSV() {
+            const response = await fetch(urlTSV);
+            const data = await response.text();
+            const filas = data.split("\n").map(row => row.split("\t"));
+
+            document.getElementById("titulo").textContent = filas[0][1];
+            document.getElementById("subtitulo").textContent = filas[0][0];
+
+            clases = filas.slice(3)
+                .map(row => ({
+                    fecha: row[0].split(" ")[0].split("/").reverse().join("-"),
+                    docente: row[1],
+                    componente: row[2],
+                    ciclo: row[4],
+                    corporal: row[6],
+                    tecnico: row[7],
+                    teorico: row[8],
+                    obras: row[9]
+                }))
+                .filter(c => c.fecha)
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+            actualizarFiltros();
+            aplicarFiltros();
+        }
+
+        function actualizarFiltros() {
+            const docenteSeleccionado = document.getElementById("docenteFilter").value;
+            const componenteSeleccionado = document.getElementById("componenteFilter").value;
+
+            let docentes = [...new Set(clases.map(c => c.docente))];
+            let componentes = [...new Set(clases
+                .filter(c => !docenteSeleccionado || c.docente === docenteSeleccionado)
+                .map(c => c.componente))];
+
+            let ciclos = [...new Set(clases
+                .filter(c => (!docenteSeleccionado || c.docente === docenteSeleccionado) &&
+                             (!componenteSeleccionado || c.componente === componenteSeleccionado))
+                .map(c => c.ciclo))];
+
+            actualizarSelect("docenteFilter", docentes);
+            actualizarSelect("componenteFilter", componentes);
+            actualizarSelect("cicloFilter", ciclos);
+        }
+
+        function actualizarSelect(id, valores) {
+            const select = document.getElementById(id);
+            const valorSeleccionado = select.value;
+            select.innerHTML = '<option value="">Todos</option>';
+            valores.forEach(valor => {
+                if (valor) {
+                    const option = document.createElement("option");
+                    option.value = valor;
+                    option.textContent = valor;
+                    select.appendChild(option);
+                }
+            });
+
+            if (valores.includes(valorSeleccionado)) {
+                select.value = valorSeleccionado;
+            } else {
+                select.value = "";
+            }
+        }
+
+        function aplicarFiltros() {
+            const docente = document.getElementById("docenteFilter").value;
+            const componente = document.getElementById("componenteFilter").value;
+            const ciclo = document.getElementById("cicloFilter").value;
+            const fecha = document.getElementById("fechaFilter").value;
+
+            actualizarFiltros();
+
+            const tableBody = document.getElementById("tableBody");
+            tableBody.innerHTML = "";
+
+            clases.filter(c =>
+                (!docente || c.docente === docente) &&
+                (!componente || c.componente === componente) &&
+                (!ciclo || c.ciclo === ciclo) &&
+                (!fecha || c.fecha === fecha)
+            ).forEach(c => {
+                let row = document.createElement("tr");
+                row.innerHTML = `<td>${c.fecha}</td><td>${c.docente}</td><td>${c.componente}</td><td>${c.ciclo}</td>
+                <td>${c.corporal}</td><td>${c.tecnico}</td><td>${c.teorico}</td><td>${c.obras}</td>`;
+                tableBody.appendChild(row);
+            });
+        }
+
+        document.querySelectorAll("select, input").forEach(f => f.addEventListener("change", aplicarFiltros));
+
+        cargarTSV();
+    </script>
+</body>
+</html>
